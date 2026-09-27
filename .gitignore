@@ -1,0 +1,13 @@
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+__pycache__/
+
+# local state: settings, installed runtimes, models, songs
+config.env
+runtime/
+models/
+data/
+
+# the author's systemd unit (machine specific)
+quadri-music-studio.service
