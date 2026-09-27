@@ -15,7 +15,8 @@ const hf = (repo: string, rev: string, file: string) => `https://huggingface.co/
 // pinned revisions: a changed upstream file must not break installs half way
 const YUE2_REV = '14fc6c6f146441b1dd6363fcb2e01e82a6914cb7'
 const VAE_REV = '9a94e1d0ea9f8087e98f77fa88df4a4068104d2a'
-const LLM_REV = 'bfc15c382204943c3a8fff0c750b94ae2364d7a3'
+const LLM_REV = 'f9093662a2e7ae0503f637088bc96f77a1a70c83'
+const LLM_SMALL_REV = 'bfc15c382204943c3a8fff0c750b94ae2364d7a3'
 
 const repoFiles = (repo: string, rev: string, dir: string, files: [string, number, string?][]): ModelFile[] =>
   files.map(([file, size, sha256]) => ({ url: hf(repo, rev, file), file: `${dir}/${file}`, size, sha256 }))
@@ -44,9 +45,20 @@ export const VAE_FILES = repoFiles('m-a-p/YuE2-Vae', VAE_REV, 'YuE2-Vae', [
 /** YuE2 inference package (pins torch 2.10.0, transformers 4.57.6, …), published in the model repo */
 export const YUE2_WHEEL = `yue2-infer @ ${hf('m-a-p/YuE2-3B', YUE2_REV, 'yue2_infer-0.1.5-py3-none-any.whl')}`
 
-/** Lyrics writer for "simple" mode, run by llama.cpp (Apache 2.0). Any OpenAI-compatible server works instead. */
+/**
+ * Lyrics writer for "simple" mode, run by llama.cpp: Gemma 4 26B-A4B (MoE, 4B active) QAT, uncensored by HauhauCS
+ * (Gemma license). No refusals for dark or explicit song topics. Any OpenAI-compatible server works instead.
+ */
 export const LLM_FILE: ModelFile = {
-  url: hf('unsloth/gemma-4-E4B-it-GGUF', LLM_REV, 'gemma-4-E4B-it-Q4_K_M.gguf'),
+  url: hf('HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP', LLM_REV, 'Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf'),
+  file: 'lyrics/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf',
+  size: 16796015520,
+  sha256: '3c13133469e431312fffb8b1d9c85ae42199e6bb5746ea1da84e8ddf2097d73c',
+}
+
+/** smaller alternative for cards below ~20 GB VRAM (installer --small-lyrics-llm): Gemma 4 E4B (Apache 2.0) */
+export const LLM_FILE_SMALL: ModelFile = {
+  url: hf('unsloth/gemma-4-E4B-it-GGUF', LLM_SMALL_REV, 'gemma-4-E4B-it-Q4_K_M.gguf'),
   file: 'lyrics/gemma-4-E4B-it-Q4_K_M.gguf',
   size: 4977171584,
 }

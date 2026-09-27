@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { LLM_FILE, type ModelFile, VAE_FILES, YUE2_FILES, YUE2_WHEEL } from '../shared/models.ts'
+import { LLM_FILE, LLM_FILE_SMALL, type ModelFile, VAE_FILES, YUE2_FILES, YUE2_WHEEL } from '../shared/models.ts'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const RUNTIME = path.join(ROOT, 'runtime')
@@ -40,8 +40,10 @@ type Step = (typeof STEPS)[number]
 const HELP = `Usage: ${WIN ? 'install.bat' : './install.sh'} [options]
 
   --gpu amd|nvidia     GPU vendor (default: detected)
-  --no-lyrics-llm      skip the bundled lyrics writer (llama.cpp + a 5 GB model). Simple mode then
-                       needs LLM_URL in config.env (Ollama, LM Studio, …); Custom mode works without it.
+  --small-lyrics-llm   lyrics writer Gemma 4 E4B (5 GB) instead of Gemma 4 26B-A4B Uncensored (17 GB),
+                       for cards with less than ~20 GB VRAM
+  --no-lyrics-llm      skip the bundled lyrics writer (llama.cpp + model). Simple mode then needs
+                       LLM_URL in config.env (Ollama, LM Studio, …); Custom mode works without it.
   --only <steps>       run only these steps, comma separated: ${STEPS.join(',')}
   --skip <steps>       skip these steps (e.g. --skip models to download later)
   --torch-index <url>  PyTorch wheel index (default: ROCm 7.1 / CUDA 12.8)
@@ -61,7 +63,7 @@ if (argv.includes('-h') || argv.includes('--help')) {
   console.log(HELP)
   process.exit(0)
 }
-const known = ['--gpu', '--no-lyrics-llm', '--only', '--skip', '--torch-index']
+const known = ['--gpu', '--small-lyrics-llm', '--no-lyrics-llm', '--only', '--skip', '--torch-index']
 for (const a of argv) if (a.startsWith('-') && !known.includes(a)) fail(`unknown option ${a}\n\n${HELP}`)
 
 const steps = (v: string | undefined) => {
@@ -264,6 +266,14 @@ console.log('Quadri Music Studio installer')
 console.log(`  folder: ${ROOT}`)
 
 if (argv.includes('--no-lyrics-llm')) setConfig(CONFIG, 'LYRICS_LLM', '0')
+// the two lyrics models we know how to download; LLM_GGUF may also point to a file of your own
+const knownLlm = (file: string) => [LLM_FILE, LLM_FILE_SMALL].find((m) => path.join(cfg.MODELS_DIR, m.file) === file)
+let llmGguf = cfg.LLM.gguf
+if (argv.includes('--small-lyrics-llm')) {
+  llmGguf = path.join(cfg.MODELS_DIR, LLM_FILE_SMALL.file)
+  const rel = path.relative(ROOT, llmGguf)
+  setConfig(CONFIG, 'LLM_GGUF', rel.startsWith('..') ? llmGguf : rel.split(path.sep).join('/'))
+}
 const lyrics = process.env.LYRICS_LLM !== '0' && cfg.LLM.server !== null
 if (cfg.LLM.server === null && want('lyrics')) note(`LLM_SERVER is empty: lyrics come from ${cfg.LLM.url} (not installed here)`)
 
@@ -346,6 +356,8 @@ if (want('python')) {
   run(py, ['-c', 'import torch;x=torch.ones(64,64,device="cuda",dtype=torch.bfloat16);assert float((x@x).sum())==64**3'], { quiet: true, env: kernelEnv })
   const vram = devices[cfg.GPU_DEVICE ? Number(cfg.GPU_DEVICE) : best]?.[1] ?? 0
   if (vram < 15 * 2 ** 30) note(`⚠ ${gb(vram)} VRAM: YuE2 peaks at 11–14 GB; tested with 24 GB`)
+  if (vram < 20 * 2 ** 30 && lyrics && knownLlm(llmGguf) === LLM_FILE)
+    note(`⚠ the 17 GB lyrics model won't fit in ${gb(vram)} VRAM: it runs partly on the CPU (slower). --small-lyrics-llm picks a 5 GB one.`)
 }
 
 // ---------- 3) YuE2 weights ----------
@@ -357,7 +369,7 @@ if (want('models')) {
   ])
 }
 
-// ---------- 4) lyrics writer: llama.cpp + a small LLM ----------
+// ---------- 4) lyrics writer: llama.cpp + an LLM ----------
 
 if (lyrics && want('lyrics')) {
   const dir = path.dirname(cfg.LLM.server!)
@@ -375,8 +387,10 @@ if (lyrics && want('lyrics')) {
   if (tryRun(cfg.LLM.server!, ['--version']) === null) {
     note('⚠ llama-server does not start. Linux: install the Vulkan loader + GPU driver (e.g. libvulkan1 / vulkan-loader, mesa-vulkan-drivers).')
   }
-  if (cfg.LLM.gguf === path.join(cfg.MODELS_DIR, LLM_FILE.file)) await downloadAll([LLM_FILE], cfg.MODELS_DIR, 'lyrics model (Gemma 4 E4B, Apache 2.0)')
-  else if (!fs.existsSync(cfg.LLM.gguf)) fail(`LLM_GGUF points to ${cfg.LLM.gguf}, which does not exist`)
+  const m = knownLlm(llmGguf)
+  if (m === LLM_FILE) await downloadAll([m], cfg.MODELS_DIR, 'lyrics model (Gemma 4 26B-A4B QAT Uncensored by HauhauCS, Gemma license)')
+  else if (m) await downloadAll([m], cfg.MODELS_DIR, 'lyrics model (Gemma 4 E4B, Apache 2.0)')
+  else if (!fs.existsSync(llmGguf)) fail(`LLM_GGUF points to ${llmGguf}, which does not exist`)
 }
 
 // ---------- 5) web UI ----------
@@ -411,5 +425,5 @@ if (want('frontend')) {
 
 if (only.length === 0 && skip.length === 0) fs.writeFileSync(path.join(RUNTIME, 'installed'), new Date().toISOString())
 console.log(`\n✓ done. Start the studio with ${WIN ? 'start.bat' : './start.sh'} (opens http://localhost:${cfg.PORT}).`)
-if (!(lyrics && want('lyrics')) && cfg.LLM.server !== null && !fs.existsSync(cfg.LLM.gguf))
+if (!(lyrics && want('lyrics')) && cfg.LLM.server !== null && !fs.existsSync(llmGguf))
   console.log(`  No lyrics model installed: Simple mode needs an OpenAI-compatible LLM at LLM_URL (${cfg.LLM.url}), see config.env.`)

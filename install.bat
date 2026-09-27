@@ -1,5 +1,5 @@
 @echo off
-rem Quadri Music Studio installer for Windows: Python + PyTorch, YuE2 models (~8 GB), lyrics LLM (~5 GB), web UI.
+rem Quadri Music Studio installer for Windows: Python + PyTorch, YuE2 models (~8 GB), lyrics LLM (~17 GB), web UI.
 rem Everything goes into this folder. Safe to re-run: finished steps are skipped, downloads resume.
 rem Options: install.bat --help
 setlocal

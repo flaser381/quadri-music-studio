@@ -53,9 +53,10 @@ export function chat(body: object, signal: AbortSignal): Promise<Response> {
 
 function startLocal(): Promise<void> {
   const port = new URL(LLM.url).port || '80'
-  // --alias: /v1/models would otherwise report the full file path as the model name
+  // --alias: /v1/models would otherwise report the full file path as the model name.
+  // No -ngl: llama.cpp's --fit (default on) puts what doesn't fit in VRAM (MoE experts first) on the CPU.
   const alias = path.basename(LLM.gguf).replace(/\.gguf$/i, '')
-  const argv = ['-m', LLM.gguf, '--alias', alias, '--host', '127.0.0.1', '--port', port, '-ngl', '999', '-c', '8192', '--jinja', ...LLM.args]
+  const argv = ['-m', LLM.gguf, '--alias', alias, '--host', '127.0.0.1', '--port', port, '-c', '8192', '--jinja', ...LLM.args]
   log(`[lyrics] starting llama-server (${alias})`, 'info')
   state = 'starting'
   const p = spawn(LLM.server!, argv, { stdio: ['ignore', 'pipe', 'pipe'] })

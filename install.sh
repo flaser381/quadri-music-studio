@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Quadri Music Studio installer for Linux: Python + PyTorch, YuE2 models (~8 GB), lyrics LLM (~5 GB), web UI.
+# Quadri Music Studio installer for Linux: Python + PyTorch, YuE2 models (~8 GB), lyrics LLM (~17 GB), web UI.
 # Everything goes into this folder. Safe to re-run: finished steps are skipped, downloads resume.
 # Options: ./install.sh --help
 set -euo pipefail

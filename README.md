@@ -14,13 +14,14 @@ lyrics and style yourself. Everything runs locally in a web app; nothing leaves 
 - Remix or cover a song from its score, two takes per click, FLAC / MP3 / WAV / ABC downloads.
 
 Code: MIT. **The YuE2 models are under [CC BY-NC 4.0](https://huggingface.co/m-a-p/YuE2-3B) (no commercial use).**
-The bundled lyrics writer is [Gemma 4 E4B](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF) (Apache 2.0) on
-llama.cpp. The installer downloads the models from Hugging Face.
+The bundled lyrics writer is [Gemma 4 26B-A4B QAT Uncensored](https://huggingface.co/HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP)
+by HauhauCS (Gemma license) on llama.cpp: a mixture-of-experts model with 4B active parameters, so it writes
+fast, and it doesn't refuse dark or explicit song topics. The installer downloads the models from Hugging Face.
 
 ## Installation
 
 Requirements: Linux or Windows 10/11 (x86-64), an AMD Radeon RX 7000/9000 or NVIDIA RTX card with **16 GB VRAM or
-more** (YuE2 peaks at 11–14 GB; developed on 24 GB), 32 GB RAM, ~35 GB free disk. No Python, ROCm or CUDA install needed: the installer
+more** (YuE2 peaks at 11–14 GB; developed on 24 GB), 32 GB RAM, ~50 GB free disk. No Python, ROCm or CUDA install needed: the installer
 brings its own.
 
 ```bash
@@ -31,8 +32,12 @@ cd quadri-music-studio
 ```
 
 The installer puts everything into the folder: a portable Node.js (if yours is older than 23.6), Python 3.13 with
-PyTorch 2.10 for your GPU, YuE2-3B + YuE2-Vae (7.8 GB, checksum-verified), llama.cpp and the lyrics model (5 GB).
-Interrupted downloads resume when you run it again. `./install.sh --help` lists the options, e.g. `--no-lyrics-llm`.
+PyTorch 2.10 for your GPU, YuE2-3B + YuE2-Vae (7.8 GB), llama.cpp and the lyrics model (16.8 GB), all
+checksum-verified. Interrupted downloads resume when you run it again. `./install.sh --help` lists the options.
+
+With less than ~20 GB VRAM, install with `--small-lyrics-llm`: Gemma 4 E4B (5 GB, Apache 2.0) instead. The big one
+still works there, llama.cpp then keeps part of it on the CPU, but it's slower. `--no-lyrics-llm` skips the
+lyrics writer.
 
 - **Linux + AMD:** add yourself to the `render` and `video` groups (`sudo usermod -aG render,video $USER`, then log
   in again). The lyrics writer needs the Vulkan loader and Mesa drivers (`vulkan-loader`/`libvulkan1`,
@@ -45,8 +50,9 @@ Updating: `git pull && ./install.sh`. Uninstalling: delete the folder (your song
 
 ## Lyrics writer
 
-Simple mode and "Write with AI" need an LLM. By default the studio starts its own llama-server with Gemma 4 E4B
-when lyrics are needed and stops it before YuE2 sings, so the two never compete for VRAM. To use a model you
+Simple mode and "Write with AI" need an LLM. By default the studio starts its own llama-server with Gemma 4
+26B-A4B Uncensored when lyrics are needed and stops it before YuE2 sings, so the two never compete for VRAM.
+Loading takes a few seconds, writing a song's lyrics about as long. To use a model you
 already run, set `LLM_SERVER=` (empty) and point `LLM_URL` at any OpenAI-compatible server in `config.env`:
 
 ```ini
